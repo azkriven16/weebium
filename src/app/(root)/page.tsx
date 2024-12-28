@@ -3,12 +3,13 @@
 import { SignInButton, UserButton } from "@clerk/clerk-react";
 import { Authenticated, Unauthenticated, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import Hero from "./_components/Hero";
 
 function App() {
     return (
         <main>
             <Unauthenticated>
-                <SignInButton />
+                <Hero />
             </Unauthenticated>
             <Authenticated>
                 <UserButton />

@@ -1,15 +1,15 @@
+"use client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { UserButton } from "@clerk/nextjs";
+import { Authenticated, Unauthenticated } from "convex/react";
 import { Bell, Search, SquarePen } from "lucide-react";
 import Link from "next/link";
-import { CiBellOn } from "react-icons/ci";
 
 const Navbar = () => {
     return (
-        <nav className={cn("bg-white shadow-sm py-4")}>
+        <nav className="py-4">
             <div className="container mx-auto flex items-center justify-between px-4">
                 <div className="flex items-center gap-5">
                     <Link
@@ -18,18 +18,35 @@ const Navbar = () => {
                     >
                         weebium
                     </Link>
-                    <div className="items-center hidden md:flex ">
-                        <Search className="text-muted-foreground" />
-                        <Input
-                            type="text"
-                            placeholder="Search"
-                            className="w-full border-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-ring shadow-none"
-                        />
-                    </div>
+                    <Authenticated>
+                        <div className="items-center hidden md:flex">
+                            <Search className="text-muted-foreground" />
+                            <Input
+                                type="text"
+                                placeholder="Search"
+                                className="w-full border-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-ring shadow-none"
+                            />
+                        </div>
+                    </Authenticated>
                 </div>
 
-                <SignedOut>
+                <Unauthenticated>
                     <div className="flex items-center space-x-4">
+                        <div className="items-center hidden md:flex space-x-4 mr-5">
+                            <Link
+                                href="/about"
+                                className="hover:underline text-sm"
+                            >
+                                Our Story
+                            </Link>
+
+                            <Link
+                                href="/create"
+                                className="hover:underline text-sm"
+                            >
+                                Write
+                            </Link>
+                        </div>
                         <Button
                             asChild
                             variant="outline"
@@ -42,9 +59,9 @@ const Navbar = () => {
                             <Link href="/sign-up">Get Started</Link>
                         </Button>
                     </div>
-                </SignedOut>
+                </Unauthenticated>
 
-                <SignedIn>
+                <Authenticated>
                     <div className="flex items-center space-x-4 text-muted-foreground">
                         <Button
                             variant="ghost"
@@ -62,7 +79,7 @@ const Navbar = () => {
                         </Button>
                         <UserButton />
                     </div>
-                </SignedIn>
+                </Authenticated>
             </div>
         </nav>
     );
