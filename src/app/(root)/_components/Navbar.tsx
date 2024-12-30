@@ -9,7 +9,7 @@ import Link from "next/link";
 
 const Navbar = () => {
     return (
-        <nav className="py-4">
+        <nav className="py-4 z-50">
             <div className="container mx-auto flex items-center justify-between px-4">
                 <div className="flex items-center gap-5">
                     <Link
@@ -41,7 +41,7 @@ const Navbar = () => {
                             </Link>
 
                             <Link
-                                href="/create"
+                                href="/write"
                                 className="hover:underline text-sm"
                             >
                                 Write
@@ -70,9 +70,11 @@ const Navbar = () => {
                         >
                             <Search />
                         </Button>
-                        <Button variant="ghost">
-                            <SquarePen />{" "}
-                            <span className="hidden md:inline">Write</span>
+                        <Button variant="ghost" asChild>
+                            <Link href="/write">
+                                <SquarePen />{" "}
+                                <span className="hidden md:inline">Write</span>
+                            </Link>
                         </Button>
                         <Button variant="ghost" size="icon">
                             <Bell />

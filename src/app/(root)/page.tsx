@@ -1,9 +1,9 @@
 "use client";
 
-import { SignInButton, UserButton } from "@clerk/clerk-react";
-import { Authenticated, Unauthenticated, useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { UserButton } from "@clerk/clerk-react";
+import { Authenticated, Unauthenticated } from "convex/react";
 import Hero from "./_components/Hero";
+import Post from "./_components/Post";
 
 function App() {
     return (
@@ -13,15 +13,10 @@ function App() {
             </Unauthenticated>
             <Authenticated>
                 <UserButton />
-                <Content />
+                <Post />
             </Authenticated>
         </main>
     );
-}
-
-function Content() {
-    const messages = useQuery(api.messages.getForCurrentUser);
-    return <div>Authenticated content: {messages?.length}</div>;
 }
 
 export default App;
