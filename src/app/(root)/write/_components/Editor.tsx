@@ -13,32 +13,38 @@ import {
     ImageIcon,
     Sparkles,
     Save,
+    ThumbsUp,
+    Bookmark,
 } from "lucide-react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../../../../convex/_generated/api";
+import { useUser } from "@clerk/nextjs";
+import { Id } from "../../../../../convex/_generated/dataModel";
 
 // Initialize Google Generative AI with API key
 const genAI = new GoogleGenerativeAI("YOUR_GEMINI_API_KEY_HERE");
 
-interface Review {
-    id: string;
-    title: string;
-    author: string;
-    content: string;
-    mediaType: string;
-    publishedAt: string;
-    lastSavedAt: string;
-}
-
 export default function BookReviewer() {
+    const { user } = useUser();
     const [title, setTitle] = useState("");
     const [author, setAuthor] = useState("");
     const [mediaType, setMediaType] = useState("book");
+    const [tags, setTags] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
     const [lastSaved, setLastSaved] = useState<string | null>(null);
+    const [currentReviewId, setCurrentReviewId] =
+        useState<Id<"reviews"> | null>(null);
+
+    const createReview = useMutation(api.reviews.createReview);
+    const updateReview = useMutation(api.reviews.updateReview);
+    const publishReview = useMutation(api.reviews.publishReview);
+    const clapReview = useMutation(api.claps.clapReview);
+    const toggleBookmark = useMutation(api.bookmarks.toggleBookmark);
 
     const editor = useEditor({
         extensions: [StarterKit, Image, Dropcursor],
@@ -94,19 +100,26 @@ export default function BookReviewer() {
 
         setIsSaving(true);
         try {
-            const review: Review = {
-                id: Math.random().toString(36).substr(2, 9),
-                title,
-                author,
-                content: editor.getHTML(),
-                mediaType,
-                publishedAt: "",
-                lastSavedAt: new Date().toISOString(),
-            };
-
-            // Mock saving to database
-            console.log("Saving review:", review);
-            localStorage.setItem(`review-${review.id}`, JSON.stringify(review));
+            const content = editor.getHTML();
+            if (currentReviewId) {
+                await updateReview({
+                    id: currentReviewId,
+                    title,
+                    author,
+                    content,
+                    mediaType,
+                    tags,
+                });
+            } else {
+                const newReviewId = await createReview({
+                    title,
+                    author,
+                    content,
+                    mediaType,
+                    tags,
+                });
+                setCurrentReviewId(newReviewId);
+            }
 
             setLastSaved(new Date().toLocaleTimeString());
             toast.success("Review saved successfully!");
@@ -118,31 +131,15 @@ export default function BookReviewer() {
         }
     };
 
-    const publishReview = async () => {
-        if (!title || !editor) {
-            toast.error("Please enter a title and content before publishing");
+    const handlePublishReview = async () => {
+        if (!currentReviewId) {
+            toast.error("Please save the review before publishing");
             return;
         }
 
         setIsPublishing(true);
         try {
-            const review: Review = {
-                id: Math.random().toString(36).substr(2, 9),
-                title,
-                author,
-                content: editor.getHTML(),
-                mediaType,
-                publishedAt: new Date().toISOString(),
-                lastSavedAt: new Date().toISOString(),
-            };
-
-            // Mock publishing to database
-            console.log("Publishing review:", review);
-            localStorage.setItem(
-                `published-review-${review.id}`,
-                JSON.stringify(review)
-            );
-
+            await publishReview({ id: currentReviewId });
             toast.success("Review published successfully!");
         } catch (error) {
             console.error("Error publishing review:", error);
@@ -152,7 +149,41 @@ export default function BookReviewer() {
         }
     };
 
-    if (!editor) {
+    const handleClap = async () => {
+        if (!currentReviewId) {
+            toast.error("Cannot clap for an unsaved review");
+            return;
+        }
+
+        try {
+            await clapReview({ reviewId: currentReviewId });
+            toast.success("Clapped for the review!");
+        } catch (error) {
+            console.error("Error clapping for review:", error);
+            toast.error("Failed to clap for the review. Please try again.");
+        }
+    };
+
+    const handleBookmark = async () => {
+        if (!currentReviewId) {
+            toast.error("Cannot bookmark an unsaved review");
+            return;
+        }
+
+        try {
+            const isBookmarked = await toggleBookmark({
+                reviewId: currentReviewId,
+            });
+            toast.success(
+                isBookmarked ? "Review bookmarked!" : "Bookmark removed!"
+            );
+        } catch (error) {
+            console.error("Error toggling bookmark:", error);
+            toast.error("Failed to bookmark the review. Please try again.");
+        }
+    };
+
+    if (!editor || !user) {
         return null;
     }
 
@@ -174,10 +205,28 @@ export default function BookReviewer() {
                     </Button>
                     <Button
                         size="sm"
-                        onClick={publishReview}
-                        disabled={isPublishing}
+                        onClick={handlePublishReview}
+                        disabled={isPublishing || !currentReviewId}
                     >
                         Publish
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleClap}
+                        disabled={!currentReviewId}
+                    >
+                        <ThumbsUp className="w-4 h-4 mr-2" />
+                        Clap
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBookmark}
+                        disabled={!currentReviewId}
+                    >
+                        <Bookmark className="w-4 h-4 mr-2" />
+                        Bookmark
                     </Button>
                 </div>
             </div>
@@ -195,6 +244,17 @@ export default function BookReviewer() {
                     onChange={(e) => setAuthor(e.target.value)}
                     placeholder="Author (optional)"
                     className="w-full text-2xl text-muted-foreground border-none outline-none bg-transparent placeholder:text-muted-foreground/50"
+                />
+                <input
+                    type="text"
+                    value={tags.join(", ")}
+                    onChange={(e) =>
+                        setTags(
+                            e.target.value.split(", ").map((tag) => tag.trim())
+                        )
+                    }
+                    placeholder="Tags (comma-separated)"
+                    className="w-full text-sm text-muted-foreground border-none outline-none bg-transparent placeholder:text-muted-foreground/50 mt-2"
                 />
             </div>
             <div className="flex items-center space-x-2 border-b mb-8 pb-2">
